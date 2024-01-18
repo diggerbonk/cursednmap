@@ -40,6 +40,7 @@ def init_application():
     return scr
 
 def load_presets(can_create:bool=True):
+    jsonContent = ""
     if path.exists(path.join(CONFIG_DIR,'presets.json')):
         with open(path.join(CONFIG_DIR,'presets.json'),'r') as filp:
             for line in filp :
