@@ -150,6 +150,7 @@ def choice_dialog(title:str, message:str,choices =[]):
     itemindex = 0 #this will hold the selected choice
     win = init_dialog(8,msglen+4,floor(curses.LINES / 2),floor(curses.COLS / 2 - msglen/ 2 -2),2,title) # Make the window centered
     win.keypad(True) #we are using up and arrow keys so we need the keypad to be True
+
     # render the widgets with the defaults
     win.addstr(2,2,message)
     rectangle(win,4,1,6,msglen)
@@ -280,6 +281,7 @@ def custom_scan(nm:nmap,arguments:str, target:str):
 def mainwindow_clear(stdscr:curses.window,focused_list:int):
     stdscr.border(curses.ACS_VLINE,curses.ACS_VLINE,curses.ACS_HLINE,curses.ACS_HLINE,curses.ACS_ULCORNER,curses.ACS_URCORNER,curses.ACS_LLCORNER,curses.ACS_LRCORNER)
     stdscr.addstr(0,1,"[ Cursed nmap ]")
+
     #Rendering the toolbar 
     for i in range(curses.COLS-2):
         stdscr.addch(1,1+i,' ',curses.color_pair(2))
@@ -289,14 +291,16 @@ def mainwindow_clear(stdscr:curses.window,focused_list:int):
     stdscr.addch(1,14,'C',curses.color_pair(5))
     stdscr.addch(1,28,'S',curses.color_pair(5))
     stdscr.addch(1,42,'Q',curses.color_pair(5))
+
     #Rendering the Host List Rectangle
     rectangle(stdscr,3,1,curses.LINES-3,25)
     if focused_list == 0:
         stdscr.addstr(3,2,'[Host List]',curses.color_pair(2))    
     else:
         stdscr.addstr(3,2,'[Host List]',curses.color_pair(0))
+
     #Rendering the Host Details Rectangle
-    rectangle(stdscr,3,26,10,curses.COLS-3)
+    rectangle(stdscr,3,26,10,curses.COLS-2)
     stdscr.addstr(3,27,'[Host Detail]')
     stdscr.addstr(4,27,'Operating System:')
     for i in range(curses.COLS - 47):
@@ -316,8 +320,9 @@ def mainwindow_clear(stdscr:curses.window,focused_list:int):
     stdscr.addstr(9,27,'Uptime:')
     for i in range(curses.COLS - 40):
         stdscr.addstr(9,34+i,' ')
+
     #Render Port detail
-    rectangle(stdscr,11,26,curses.LINES-3,curses.COLS-3)
+    rectangle(stdscr,11,26,curses.LINES-3,curses.COLS-2)
     if focused_list == 1:
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(2))
     else:
