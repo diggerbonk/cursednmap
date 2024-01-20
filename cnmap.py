@@ -13,6 +13,8 @@ CONFIG_DIR = path.join(environ['HOME'],'.config','cnmap')
 ScanModes = []
 current_uid = getuid()
 
+_hostlist_width = 31
+
 #Class to hold what scan options we choose
 class ScanOptions():
     ip_address = ''
@@ -320,7 +322,7 @@ def mainwindow_clear(stdscr:curses.window,focused_list:int):
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(2))
     else:
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(0))
-    for i in range(curses.COLS-31):
+    for i in range(curses.COLS - _hostlist_width):
         for j in range(curses.LINES-15):
             stdscr.addch(12+j,28+i,' ')
     #Render the status bar
@@ -374,7 +376,7 @@ def mainwindow_update_portlist(scr:curses.window,scan_result:nmap.PortScanner,it
         lport = list(scan_result[scan_result.all_hosts()[item_index]][proto]) #we make a list 
         lport.sort()#so we can sort it
         for port in lport:
-            portpad.addstr(port_index,0,f"{proto}/{port} state:{scan_result[scan_result.all_hosts()[item_index]][proto][port]['state']}")
+            portpad.addstr(port_index,0,(f"{proto}/{port} state:{scan_result[scan_result.all_hosts()[item_index]][proto][port]['state']}").ljust(curses.COLS - _hostlist_width, '-'))
             port_index +=1
 
 def main(arg):
@@ -387,7 +389,7 @@ def main(arg):
     stdscr = init_application()
     hostlist_pad = curses.newpad(1,24)
     hostlist_page = 0
-    portlist_pad = curses.newpad(curses.LINES * 10,curses.COLS-31)
+    portlist_pad = curses.newpad(curses.LINES * 10,curses.COLS - _hostlist_width)
     portlist_page = 0
     focused_list = 0
     stdscr.timeout(10)
