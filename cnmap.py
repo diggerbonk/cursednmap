@@ -1,11 +1,28 @@
 #!/usr/bin/env python3
+#
+# Window dimensions
+#    geo.width: width of application
+#    geo.height: height of applicaiton
+#    _hostwidth: height of host list pad
+#    _detailwidth: width of detail pad (geo.width - _hostwidth)
+#    _detailheight: height of detail pad
+#    _portwidth: width of ports pad (geo.width - _hostwidth)
+#    _portheight: height of ports pad (geo.height - _detailheight)
+
 import curses
 from curses.textpad import Textbox, rectangle
 from math import floor
+from dataclasses import dataclass
 from os import getuid,path,environ, mkdir
 import nmap
 import subprocess
 import json
+
+@dataclass
+class Geometry:
+    width: int
+    height: int
+    hostwidth: int
 
 #Just dome globals
 VERSION_STRING = '0.0.2.1'
@@ -13,7 +30,7 @@ CONFIG_DIR = path.join(environ['HOME'],'.config','cnmap')
 ScanModes = []
 current_uid = getuid()
 
-_hostlist_width = 31
+geo = Geometry(80, 24, 31)
 
 #Class to hold what scan options we choose
 class ScanOptions():
@@ -23,7 +40,7 @@ class ScanOptions():
 # Helper function that we call when we are initializing curses
 def init_application():
     scr = curses.initscr()
-    if (curses.COLS < 60) or (curses.LINES < 15):
+    if (geo.width < 60) or (geo.height < 15):
         scr.addstr(1,1,'You need at least a 60x15 terminal.')
         scr.addstr(2,1,'Press any key to quit.')
         scr.refresh()
@@ -86,9 +103,6 @@ def load_presets(can_create:bool=True):
             {'name':'UDP Scan','param':'-sU','root':True}
             ]
 
-
-
-
 # Helper function that we call to initialize new dialog windows
 def init_dialog(height:int, width:int, pos_y:int, pos_x:int,color_pair:int,title:str):
     try:
@@ -104,7 +118,7 @@ def init_dialog(height:int, width:int, pos_y:int, pos_x:int,color_pair:int,title
 #--------------- Beginning of Reusable dialogs section ---------------
 def error_dialog(title:str,message:str):
     msglen = len(message)
-    win = init_dialog(4,msglen+4,floor(curses.LINES / 2),floor(curses.COLS / 2 - msglen/ 2 -2),3,title) #Sizing and centering the dialog
+    win = init_dialog(4,msglen+4,floor(geo.height / 2),floor(geo.width / 2 - msglen/ 2 -2),3,title) #Sizing and centering the dialog
     win.addstr(1,2,message,curses.color_pair(4))
     win.addstr(2,2,'Press ENTER to continue')
     win.redrawwin()
@@ -117,10 +131,10 @@ def error_dialog(title:str,message:str):
 
 def input_dialog(title:str, message:str, default_text:str, max_length:int):
     msglen = len(message)
-    if (msglen >= max_length) or (max_length >= curses.COLS -4): #if the length of the input is bigger than the screen
-        win = init_dialog(5,msglen+4,floor(curses.LINES / 2),floor(curses.COLS / 2 - msglen/ 2 -2),2,title)
+    if (msglen >= max_length) or (max_length >= geo.width -4): #if the length of the input is bigger than the screen
+        win = init_dialog(5,msglen+4,floor(geo.height / 2),floor(geo.width / 2 - msglen/ 2 -2),2,title)
     else:
-        win = init_dialog(5,max_length+4,floor(curses.LINES / 2),floor(curses.COLS / 2 - max_length/ 2 -2),2,title)
+        win = init_dialog(5,max_length+4,floor(geo.height / 2),floor(geo.width / 2 - max_length/ 2 -2),2,title)
     win.addstr(2,2,message)
     result = default_text
     win.addstr(3,2,result)
@@ -128,7 +142,7 @@ def input_dialog(title:str, message:str, default_text:str, max_length:int):
     while(True):
         keypressed = win.getch()
         if (keypressed == curses.KEY_BACKSPACE) or (keypressed == 127) or (keypressed == ord("\b")): #Handling the backspace
-            if (msglen >= max_length) or (max_length >= curses.COLS -4): #if the is bigger then the screen size
+            if (msglen >= max_length) or (max_length >= geo.width -4): #if the is bigger then the screen size
                 for i in range(msglen -4 ): #we fill up with blank space the msglen
                     win.addch(3,2+i,' ')
             else: #if it is not then with the max_length
@@ -148,7 +162,7 @@ def input_dialog(title:str, message:str, default_text:str, max_length:int):
 def choice_dialog(title:str, message:str,choices =[]):
     msglen = len(message)
     itemindex = 0 #this will hold the selected choice
-    win = init_dialog(8,msglen+4,floor(curses.LINES / 2),floor(curses.COLS / 2 - msglen/ 2 -2),2,title) # Make the window centered
+    win = init_dialog(8,msglen+4,floor(geo.height / 2),floor(geo.width / 2 - msglen/ 2 -2),2,title) # Make the window centered
     win.keypad(True) #we are using up and arrow keys so we need the keypad to be True
 
     # render the widgets with the defaults
@@ -183,7 +197,7 @@ def choice_dialog(title:str, message:str,choices =[]):
 
 # New Scan window function
 def newscan_win(options:ScanOptions):
-    win = init_dialog(6,40,floor(curses.LINES / 2),floor(curses.COLS / 2 - 20),1,'New Scan')
+    win = init_dialog(6,40,floor(geo.height / 2),floor(geo.width / 2 - 20),1,'New Scan')
     win.keypad(True)
     scan_modes = []
     focus = 0
@@ -252,7 +266,7 @@ def newscan_win(options:ScanOptions):
 def perform_scan(nm:nmap,mode:int, target:str):
     #Rendering the window
     try:
-        scanning_window = init_dialog(4,30,floor(curses.LINES / 2 -2),floor(curses.COLS / 2 -15),3,'Scanning')
+        scanning_window = init_dialog(4,30,floor(geo.height / 2 -2),floor(geo.width / 2 -15),3,'Scanning')
         scanning_window.addstr(1,3,"/!\\ Scan in progress /!\\",curses.A_BLINK)
         scanning_window.addstr(2,7,"Please wait...")
         scanning_window.refresh()
@@ -266,7 +280,7 @@ def perform_scan(nm:nmap,mode:int, target:str):
 
 def custom_scan(nm:nmap,arguments:str, target:str):
     try:
-        scanning_window = init_dialog(4,34,floor(curses.LINES / 2 -2),floor(curses.COLS / 2 -17),3,'Scanning')
+        scanning_window = init_dialog(4,34,floor(geo.height / 2 -2),floor(geo.width / 2 -17),3,'Scanning')
         scanning_window.addstr(1,2,"/!\\ Custom scan in progress",curses.A_BLINK)
         scanning_window.addstr(2,7,"Please wait...")
         scanning_window.refresh()
@@ -279,11 +293,12 @@ def custom_scan(nm:nmap,arguments:str, target:str):
         return False
 
 def mainwindow_clear(stdscr:curses.window,focused_list:int):
+    stdscr.erase()
     stdscr.border(curses.ACS_VLINE,curses.ACS_VLINE,curses.ACS_HLINE,curses.ACS_HLINE,curses.ACS_ULCORNER,curses.ACS_URCORNER,curses.ACS_LLCORNER,curses.ACS_LRCORNER)
     stdscr.addstr(0,1,"[ Cursed nmap ]")
 
     #Rendering the toolbar 
-    for i in range(curses.COLS-2):
+    for i in range(geo.width-2):
         stdscr.addch(1,1+i,' ',curses.color_pair(2))
         stdscr.addch(2,1+i,curses.ACS_HLINE)
     stdscr.addstr(1,2,'[New Scan | Custom Scan | Save Output | Quit]',curses.color_pair(2))
@@ -293,47 +308,47 @@ def mainwindow_clear(stdscr:curses.window,focused_list:int):
     stdscr.addch(1,42,'Q',curses.color_pair(5))
 
     #Rendering the Host List Rectangle
-    rectangle(stdscr,3,1,curses.LINES-3,25)
+    rectangle(stdscr,3,1,geo.height-3,25)
     if focused_list == 0:
         stdscr.addstr(3,2,'[Host List]',curses.color_pair(2))    
     else:
         stdscr.addstr(3,2,'[Host List]',curses.color_pair(0))
 
     #Rendering the Host Details Rectangle
-    rectangle(stdscr,3,26,10,curses.COLS-2)
+    rectangle(stdscr,3,26,10,geo.width-2)
     stdscr.addstr(3,27,'[Host Detail]')
     stdscr.addstr(4,27,'Operating System:')
-    for i in range(curses.COLS - 47):
+    for i in range(geo.width - 47):
         stdscr.addstr(4,44+i,' ')
     stdscr.addstr(5,27,'IP Address:')
-    for i in range(curses.COLS - 42):
+    for i in range(geo.width - 42):
         stdscr.addstr(5,38+i,' ')
     stdscr.addstr(6,27,'Hostname:')
-    for i in range(curses.COLS - 39):
+    for i in range(geo.width - 39):
         stdscr.addstr(6,36+i,' ')
     stdscr.addstr(7,27,'MAC Addr:')
-    for i in range(curses.COLS - 44):
+    for i in range(geo.width - 44):
         stdscr.addstr(7,39+i,' ')
     stdscr.addstr(8,27,'Vendor:')
-    for i in range(curses.COLS - 40):
+    for i in range(geo.width - 40):
         stdscr.addstr(8,34+i,' ')
     stdscr.addstr(9,27,'Uptime:')
-    for i in range(curses.COLS - 40):
+    for i in range(geo.width - 40):
         stdscr.addstr(9,34+i,' ')
 
     #Render Port detail
-    rectangle(stdscr,11,26,curses.LINES-3,curses.COLS-2)
+    rectangle(stdscr,11,26,geo.height-3,geo.width-2)
     if focused_list == 1:
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(2))
     else:
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(0))
-    for i in range(curses.COLS - _hostlist_width):
-        for j in range(curses.LINES-15):
+    for i in range(geo.width - geo.hostwidth):
+        for j in range(geo.height-15):
             stdscr.addch(12+j,28+i,' ')
     #Render the status bar
-    for i in range(curses.COLS-2):
-        stdscr.addch(curses.LINES-2,1+i,' ',curses.color_pair(2))
-    stdscr.addstr(curses.LINES-2,1,f'Cursed nmap version:{VERSION_STRING}',curses.color_pair(2))
+    for i in range(geo.width-2):
+        stdscr.addch(geo.height-2,1+i,' ',curses.color_pair(2))
+    stdscr.addstr(geo.height-2,1,f'Cursed nmap version:{VERSION_STRING}',curses.color_pair(2))
 
 def mainwindow_update_hostlist(scr:curses.window,scan_result:nmap.PortScanner,item_index,hostpad:curses.window,portpad:curses.window):
     host_index = 0
@@ -381,10 +396,17 @@ def mainwindow_update_portlist(scr:curses.window,scan_result:nmap.PortScanner,it
         lport = list(scan_result[scan_result.all_hosts()[item_index]][proto]) #we make a list 
         lport.sort()#so we can sort it
         for port in lport:
-            portpad.addstr(port_index,0,(f"{proto}/{port} state:{scan_result[scan_result.all_hosts()[item_index]][proto][port]['state']}").ljust(curses.COLS - _hostlist_width, '-'))
+            portpad.addstr(port_index,0,(f"{proto}/{port} state:{scan_result[scan_result.all_hosts()[item_index]][proto][port]['state']}").ljust(geo.width - geo.hostwidth, '-'))
             port_index +=1
 
+def update_geometry(stdscr):
+    global geo
+    geo.height, geo.width = stdscr.getmaxyx()
+
 def main(arg):
+    global geo
+    geo.width = curses.COLS
+    geo.height = curses.LINES
     scan_opt = ScanOptions()
     scanned_hosts = 0
     selected_host = -1
@@ -392,9 +414,10 @@ def main(arg):
     ScanModes = load_presets(True)
     nm = nmap.PortScanner()   
     stdscr = init_application()
+    geo.height, geo.width = stdscr.getmaxyx()
     hostlist_pad = curses.newpad(1,24)
     hostlist_page = 0
-    portlist_pad = curses.newpad(curses.LINES * 10,curses.COLS - _hostlist_width)
+    portlist_pad = curses.newpad(geo.height * 10,geo.width - geo.hostwidth)
     portlist_page = 0
     focused_list = 0
     stdscr.timeout(10)
@@ -413,7 +436,14 @@ def main(arg):
     stdscr.refresh()
     while(True):
         keypressed = stdscr.getch()
-        if keypressed == ord('n'):
+        if keypressed == curses.KEY_RESIZE:
+            update_geometry(stdscr)
+            mainwindow_clear(stdscr,focused_list)
+            mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
+            hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
+            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+            stdscr.refresh()
+        elif keypressed == ord('n'):
             if newscan_win(scan_opt):
                 if not perform_scan(nm,scan_opt.mode,scan_opt.ip_address):
                     continue
@@ -423,10 +453,10 @@ def main(arg):
                     hostlist_pad = curses.newpad(scanned_hosts,24)
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
-                    stdscr.addstr(curses.LINES-2,1,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
+                    stdscr.addstr(geo.height-2,1,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
                     stdscr.refresh()
-                    hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
-                    portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                    hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
+                    portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
                 else:
                     error_dialog('Warning','No hosts found!')
             else:
@@ -441,29 +471,29 @@ def main(arg):
             if scanned_hosts > 0:
                 mainwindow_clear(stdscr,focused_list)
                 mainwindow_update_hostlist(stdscr,nm,0,hostlist_pad,portlist_pad)
-                stdscr.addstr(curses.LINES-2,2,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
+                stdscr.addstr(geo.height-2,2,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
                 stdscr.refresh()
-                hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
-                portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
+                portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
         elif keypressed == ord('s'):
             try:
                 filename = input_dialog('Save Scan','Select where you want to save the output file',path.expanduser('~'),260)
                 with open(filename,'w') as filp:
                     filp.write(nm.csv())
                 stdscr.refresh()
-                if selected_host <= curses.LINES - 7:
-                    hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
+                if selected_host <= geo.height - 7:
+                    hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
                 else:
-                    hostlist_pad.refresh(selected_host,0,4,2,curses.LINES-3,23)
-                portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                    hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
+                portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
             except:
                 error_dialog('Error','Error saving the file.')
                 stdscr.refresh()
-                if selected_host <= curses.LINES - 7:
-                    hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
+                if selected_host <= geo.height - 7:
+                    hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
                 else:
-                    hostlist_pad.refresh(selected_host,0,4,2,curses.LINES-3,23)
-                portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                    hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
+                portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
 
         elif keypressed == ord('q'):
             curses.endwin()
@@ -477,11 +507,11 @@ def main(arg):
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
                     stdscr.refresh()
-            if selected_host <= curses.LINES - 7:
-                hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
+            if selected_host <= geo.height - 7:
+                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
             else:
-                hostlist_pad.refresh(selected_host,0,4,2,curses.LINES-3,23)
-            portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
+            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
 
         elif keypressed == curses.KEY_DOWN:
             if scanned_hosts == 0:
@@ -493,11 +523,11 @@ def main(arg):
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
                     stdscr.refresh()
-            if selected_host <= curses.LINES - 7:
-                hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
+            if selected_host <= geo.height - 7:
+                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
             else:
-                hostlist_pad.refresh(selected_host,0,4,2,curses.LINES-3,23)
-            portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
+            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
 
         elif keypressed == curses.KEY_LEFT: #tab key
             if focused_list == 1:
@@ -506,11 +536,11 @@ def main(arg):
             if scanned_hosts > 0:
                 mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
             stdscr.refresh()
-            if selected_host <= curses.LINES - 7:
-                hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
+            if selected_host <= geo.height - 7:
+                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
             else:
-                hostlist_pad.refresh(selected_host,0,4,2,curses.LINES-3,23)
-            portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
+            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
 
         elif keypressed == curses.KEY_RIGHT: #tab key
             if focused_list == 0:
@@ -519,11 +549,11 @@ def main(arg):
             if scanned_hosts > 0:
                 mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
             stdscr.refresh()
-            if selected_host <= curses.LINES - 7:
-                hostlist_pad.refresh(0,0,4,2,curses.LINES-3,23)
+            if selected_host <= geo.height - 7:
+                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
             else:
-                hostlist_pad.refresh(selected_host,0,4,2,curses.LINES-3,23)
-            portlist_pad.refresh(0,0,12,28,curses.LINES-4,curses.COLS-4)
+                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
+            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
     
 if __name__== '__main__':
     curses.wrapper(main)
