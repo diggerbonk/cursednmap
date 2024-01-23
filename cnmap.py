@@ -1,13 +1,4 @@
 #!/usr/bin/env python3
-#
-# Window dimensions
-#    geo.width: width of application
-#    geo.height: height of applicaiton
-#    _hostwidth: height of host list pad
-#    _detailwidth: width of detail pad (geo.width - _hostwidth)
-#    _detailheight: height of detail pad
-#    _portwidth: width of ports pad (geo.width - _hostwidth)
-#    _portheight: height of ports pad (geo.height - _detailheight)
 
 import curses
 from curses.textpad import Textbox, rectangle
@@ -438,11 +429,12 @@ def main(arg):
         keypressed = stdscr.getch()
         if keypressed == curses.KEY_RESIZE:
             update_geometry(stdscr)
+            portlist_pad = curses.newpad(geo.height * 10,geo.width - geo.hostwidth)
             mainwindow_clear(stdscr,focused_list)
             mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
+            stdscr.refresh()
             hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
             portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
-            stdscr.refresh()
         elif keypressed == ord('n'):
             if newscan_win(scan_opt):
                 if not perform_scan(nm,scan_opt.mode,scan_opt.ip_address):
