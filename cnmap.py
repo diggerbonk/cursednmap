@@ -21,7 +21,10 @@ CONFIG_DIR = path.join(environ['HOME'],'.config','cnmap')
 ScanModes = []
 current_uid = getuid()
 
-geo = Geometry(80, 24, 31)
+geo = Geometry(80, 24, 29)
+
+_listw= 27
+_listn = 12
 
 #Class to hold what scan options we choose
 class ScanOptions():
@@ -333,9 +336,9 @@ def mainwindow_clear(stdscr:curses.window,focused_list:int):
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(2))
     else:
         stdscr.addstr(11,27,'[Port Detail]',curses.color_pair(0))
-    for i in range(geo.width - geo.hostwidth):
-        for j in range(geo.height-15):
-            stdscr.addch(12+j,28+i,' ')
+    #for i in range(geo.width - geo.hostwidth):
+    #    for j in range(geo.height-15):
+    #        stdscr.addch(12+j,28+i,' ')
     #Render the status bar
     for i in range(geo.width-2):
         stdscr.addch(geo.height-2,1+i,' ',curses.color_pair(2))
@@ -394,6 +397,13 @@ def update_geometry(stdscr):
     global geo
     geo.height, geo.width = stdscr.getmaxyx()
 
+def refresh(stdscr,hostlist_pad,portlist_pad):
+    #portlist_pad.bkgd(' ',curses.color_pair(5))
+    #hostlist_pad.bkgd(' ',curses.color_pair(5))
+    stdscr.refresh()
+    hostlist_pad.refresh(0,0,4,2,geo.height-4,geo.hostwidth-5)
+    portlist_pad.refresh(0,0,12,27,geo.height-4,geo.width-3)
+
 def main(arg):
     global geo
     geo.width = curses.COLS
@@ -406,7 +416,7 @@ def main(arg):
     nm = nmap.PortScanner()   
     stdscr = init_application()
     geo.height, geo.width = stdscr.getmaxyx()
-    hostlist_pad = curses.newpad(1,24)
+    hostlist_pad = curses.newpad(geo.height,geo.hostwidth-4)
     hostlist_page = 0
     portlist_pad = curses.newpad(geo.height * 10,geo.width - geo.hostwidth)
     portlist_page = 0
@@ -420,11 +430,12 @@ def main(arg):
     except:
         error_dialog('Critical Error','nmap binary not found, please install nmap and try again.')
         exit()
+
     #Check if we are root, and warn if we are not
     if current_uid != 0:
         error_dialog('Warning','Not running as root, this will limit your scan options!')
-        stdscr.refresh()
-    stdscr.refresh()
+
+    refresh(stdscr,hostlist_pad,portlist_pad)
     while(True):
         keypressed = stdscr.getch()
         if keypressed == curses.KEY_RESIZE:
@@ -432,9 +443,7 @@ def main(arg):
             portlist_pad = curses.newpad(geo.height * 10,geo.width - geo.hostwidth)
             mainwindow_clear(stdscr,focused_list)
             mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
-            stdscr.refresh()
-            hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+            refresh(stdscr,hostlist_pad,portlist_pad)
         elif keypressed == ord('n'):
             if newscan_win(scan_opt):
                 if not perform_scan(nm,scan_opt.mode,scan_opt.ip_address):
@@ -442,17 +451,15 @@ def main(arg):
                 scanned_hosts = len(nm.all_hosts())
                 selected_host = 0
                 if scanned_hosts > 0:
-                    hostlist_pad = curses.newpad(scanned_hosts,24)
+                    hostlist_pad = curses.newpad(max(geo.height,scanned_hosts),geo.hostwidth-4)
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
                     stdscr.addstr(geo.height-2,1,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
-                    stdscr.refresh()
-                    hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-                    portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+                    refresh(stdscr,hostlist_pad,portlist_pad)
                 else:
                     error_dialog('Warning','No hosts found!')
             else:
-                stdscr.refresh()
+                refresh(stdscr,hostlist_pad,portlist_pad)
         elif keypressed == ord('c'):
             hosts = input_dialog('Custom Scan','Insert the target ip address/range','',30)
             arguments = input_dialog('Custom Scan','Insert the nmap command parameters(e.g: -sS -A -T4','',200)
@@ -464,28 +471,16 @@ def main(arg):
                 mainwindow_clear(stdscr,focused_list)
                 mainwindow_update_hostlist(stdscr,nm,0,hostlist_pad,portlist_pad)
                 stdscr.addstr(geo.height-2,2,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
-                stdscr.refresh()
-                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-                portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+                refresh(stdscr,hostlist_pad,portlist_pad)
         elif keypressed == ord('s'):
             try:
                 filename = input_dialog('Save Scan','Select where you want to save the output file',path.expanduser('~'),260)
                 with open(filename,'w') as filp:
                     filp.write(nm.csv())
-                stdscr.refresh()
-                if selected_host <= geo.height - 7:
-                    hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-                else:
-                    hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
-                portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+                refresh(stdscr,hostlist_pad,portlist_pad)
             except:
                 error_dialog('Error','Error saving the file.')
-                stdscr.refresh()
-                if selected_host <= geo.height - 7:
-                    hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-                else:
-                    hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
-                portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+                refresh(stdscr,hostlist_pad,portlist_pad)
 
         elif keypressed == ord('q'):
             curses.endwin()
@@ -498,12 +493,7 @@ def main(arg):
                     selected_host -= 1
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
-                    stdscr.refresh()
-            if selected_host <= geo.height - 7:
-                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-            else:
-                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
-            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+            refresh(stdscr,hostlist_pad,portlist_pad)
 
         elif keypressed == curses.KEY_DOWN:
             if scanned_hosts == 0:
@@ -514,12 +504,7 @@ def main(arg):
                     selected_host+=1
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
-                    stdscr.refresh()
-            if selected_host <= geo.height - 7:
-                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-            else:
-                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
-            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+            refresh(stdscr,hostlist_pad,portlist_pad)
 
         elif keypressed == curses.KEY_LEFT: #tab key
             if focused_list == 1:
@@ -527,12 +512,7 @@ def main(arg):
                 mainwindow_clear(stdscr,focused_list)
             if scanned_hosts > 0:
                 mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
-            stdscr.refresh()
-            if selected_host <= geo.height - 7:
-                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-            else:
-                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
-            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+            refresh(stdscr,hostlist_pad,portlist_pad)
 
         elif keypressed == curses.KEY_RIGHT: #tab key
             if focused_list == 0:
@@ -540,12 +520,7 @@ def main(arg):
                 mainwindow_clear(stdscr,focused_list)
             if scanned_hosts > 0:
                 mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
-            stdscr.refresh()
-            if selected_host <= geo.height - 7:
-                hostlist_pad.refresh(0,0,4,2,geo.height-3,23)
-            else:
-                hostlist_pad.refresh(selected_host,0,4,2,geo.height-3,23)
-            portlist_pad.refresh(0,0,12,28,geo.height-4,geo.width-4)
+            refresh(stdscr,hostlist_pad,portlist_pad)
     
 if __name__== '__main__':
     curses.wrapper(main)
