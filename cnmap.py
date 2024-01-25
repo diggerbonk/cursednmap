@@ -385,6 +385,7 @@ def mainwindow_update_hostlist(scr:curses.window,scan_result:nmap.PortScanner,it
         host_index+=1
 
 def mainwindow_update_portlist(scr:curses.window,scan_result:nmap.PortScanner,item_index:int,portpad:curses.window):
+    portpad.erase()
     port_index = 0
     for proto in scan_result[scan_result.all_hosts()[item_index]].all_protocols():
         lport = list(scan_result[scan_result.all_hosts()[item_index]][proto]) #we make a list 
@@ -452,6 +453,7 @@ def main(arg):
                 selected_host = 0
                 if scanned_hosts > 0:
                     hostlist_pad = curses.newpad(max(geo.height,scanned_hosts),geo.hostwidth-4)
+                    portlist_pad = curses.newpad(geo.height * 10,geo.width - geo.hostwidth)
                     mainwindow_clear(stdscr,focused_list)
                     mainwindow_update_hostlist(stdscr,nm,selected_host,hostlist_pad,portlist_pad)
                     stdscr.addstr(geo.height-2,1,f'Cursed nmap version:{VERSION_STRING} | Host count: {len(nm.all_hosts())}',curses.color_pair(2))
